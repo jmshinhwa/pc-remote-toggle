@@ -2,3 +2,4 @@ pystray
 pillow
 flask
 requests
+mcp
