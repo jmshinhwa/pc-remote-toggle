@@ -8,6 +8,8 @@ import threading
 import os
 import sys
 import re
+import time
+import requests
 from flask import Flask, request, jsonify
 import pystray
 from PIL import Image, ImageDraw
@@ -179,6 +181,23 @@ class TunnelToggle:
         """Flask 서버 시작"""
         app.run(host='127.0.0.1', port=TUNNEL_PORT, threaded=True, use_reloader=False)
     
+    def wait_for_server(self, timeout=10):
+        """서버가 준비될 때까지 대기"""
+        start = time.time()
+        while time.time() - start < timeout:
+            try:
+                resp = requests.get(
+                    f"http://127.0.0.1:{TUNNEL_PORT}/health",
+                    headers={"X-API-Key": API_KEY},
+                    timeout=1
+                )
+                if resp.status_code == 200:
+                    return True
+            except:
+                pass
+            time.sleep(0.5)
+        return False
+    
     def start_tunnel(self, icon):
         """터널 시작"""
         if self.is_running:
@@ -187,6 +206,13 @@ class TunnelToggle:
         # Flask 서버 시작
         self.server_thread = threading.Thread(target=self.start_server, daemon=True)
         self.server_thread.start()
+        
+        # 서버 준비될 때까지 대기
+        print("⏳ Flask 서버 시작 중...")
+        if not self.wait_for_server():
+            print("❌ Flask 서버 시작 실패!")
+            return
+        print("✅ Flask 서버 준비됨!")
         
         # Cloudflare 터널 시작
         try:
