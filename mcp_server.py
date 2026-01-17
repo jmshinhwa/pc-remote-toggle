@@ -8,23 +8,16 @@ import threading
 import os
 import re
 import time
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 import pystray
 from PIL import Image, ImageDraw
 from config import API_KEY, TUNNEL_PORT
 
 # === MCP 서버 설정 ===
-mcp = FastMCP(
-    name="PC-Remote",
-    stateless_http=True,
-    json_response=True
-)
-
-# API 키 검증용 전역 변수
-VALID_API_KEY = API_KEY
+mcp = FastMCP(name="PC-Remote")
 
 # === Filesystem 도구들 ===
-@mcp.tool(description="디렉토리 목록 조회")
+@mcp.tool()
 def list_directory(path: str = "~") -> dict:
     """디렉토리 내용을 조회합니다."""
     try:
@@ -45,7 +38,7 @@ def list_directory(path: str = "~") -> dict:
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@mcp.tool(description="파일 읽기")
+@mcp.tool()
 def read_file(path: str) -> dict:
     """파일 내용을 읽습니다."""
     try:
@@ -56,7 +49,7 @@ def read_file(path: str) -> dict:
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@mcp.tool(description="파일 쓰기")
+@mcp.tool()
 def write_file(path: str, content: str) -> dict:
     """파일에 내용을 씁니다."""
     try:
@@ -70,7 +63,7 @@ def write_file(path: str, content: str) -> dict:
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@mcp.tool(description="파일/폴더 삭제")
+@mcp.tool()
 def delete_path(path: str) -> dict:
     """파일이나 폴더를 삭제합니다."""
     try:
@@ -84,7 +77,7 @@ def delete_path(path: str) -> dict:
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@mcp.tool(description="파일/폴더 이동 또는 이름 변경")
+@mcp.tool()
 def move_path(src: str, dest: str) -> dict:
     """파일이나 폴더를 이동하거나 이름을 변경합니다."""
     try:
@@ -96,7 +89,7 @@ def move_path(src: str, dest: str) -> dict:
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@mcp.tool(description="파일/폴더 복사")
+@mcp.tool()
 def copy_path(src: str, dest: str) -> dict:
     """파일이나 폴더를 복사합니다."""
     try:
@@ -111,7 +104,7 @@ def copy_path(src: str, dest: str) -> dict:
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@mcp.tool(description="폴더 생성")
+@mcp.tool()
 def create_directory(path: str) -> dict:
     """폴더를 생성합니다."""
     try:
@@ -121,7 +114,7 @@ def create_directory(path: str) -> dict:
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@mcp.tool(description="파일/폴더 정보 조회")
+@mcp.tool()
 def get_file_info(path: str) -> dict:
     """파일이나 폴더의 상세 정보를 조회합니다."""
     try:
@@ -143,7 +136,7 @@ def get_file_info(path: str) -> dict:
         return {"success": False, "error": str(e)}
 
 # === Desktop Commander 도구들 ===
-@mcp.tool(description="명령어 실행")
+@mcp.tool()
 def execute_command(command: str, cwd: str = "~", timeout: int = 60) -> dict:
     """쉘 명령어를 실행합니다."""
     try:
@@ -168,7 +161,7 @@ def execute_command(command: str, cwd: str = "~", timeout: int = 60) -> dict:
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@mcp.tool(description="Python 스크립트 실행")
+@mcp.tool()
 def run_python(script: str, cwd: str = "~") -> dict:
     """Python 코드를 실행합니다."""
     try:
@@ -191,7 +184,7 @@ def run_python(script: str, cwd: str = "~") -> dict:
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@mcp.tool(description="Git 명령 실행")
+@mcp.tool()
 def git_command(repo_path: str, command: str) -> dict:
     """Git 명령을 실행합니다. (예: status, pull, push, add ., commit -m 'msg')"""
     try:
@@ -214,7 +207,7 @@ def git_command(repo_path: str, command: str) -> dict:
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@mcp.tool(description="Git 자동 푸시 (add + commit + push)")
+@mcp.tool()
 def git_push(repo_path: str, message: str = "auto sync") -> dict:
     """Git add, commit, push를 한번에 실행합니다."""
     try:
@@ -240,7 +233,7 @@ def git_push(repo_path: str, message: str = "auto sync") -> dict:
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@mcp.tool(description="프로세스 목록 조회")
+@mcp.tool()
 def list_processes(filter_name: str = "") -> dict:
     """실행 중인 프로세스 목록을 조회합니다."""
     try:
@@ -259,7 +252,7 @@ def list_processes(filter_name: str = "") -> dict:
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@mcp.tool(description="환경 정보 조회")
+@mcp.tool()
 def get_system_info() -> dict:
     """시스템 환경 정보를 조회합니다."""
     import platform
@@ -298,20 +291,6 @@ class TunnelToggle:
         """MCP 서버 시작"""
         mcp.run(transport="streamable-http", host="127.0.0.1", port=TUNNEL_PORT)
     
-    def wait_for_server(self, timeout=10):
-        """서버 준비 대기"""
-        import requests
-        start = time.time()
-        while time.time() - start < timeout:
-            try:
-                resp = requests.get(f"http://127.0.0.1:{TUNNEL_PORT}/mcp", timeout=1)
-                if resp.status_code in [200, 405]:  # MCP endpoint exists
-                    return True
-            except:
-                pass
-            time.sleep(0.5)
-        return False
-    
     def start_tunnel(self, icon):
         if self.is_running:
             return
@@ -321,7 +300,7 @@ class TunnelToggle:
         self.server_thread.start()
         
         print("⏳ MCP 서버 시작 중...")
-        time.sleep(2)  # MCP 서버 초기화 대기
+        time.sleep(3)  # MCP 서버 초기화 대기
         print("✅ MCP 서버 준비됨!")
         
         # Cloudflare 터널 시작
