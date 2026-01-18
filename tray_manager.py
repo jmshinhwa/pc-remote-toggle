@@ -13,9 +13,11 @@ import psutil
 
 
 class ServiceManager:
+    """Windows 서비스 매니저 - 시스템 트레이를 통한 서비스 관리"""
+    
     # 서비스 시작 대기 설정
-    SERVICE_START_TIMEOUT = 5.0  # 최대 대기 시간 (초)
-    SERVICE_CHECK_INTERVAL = 0.5  # 상태 체크 간격 (초)
+    SERVICE_START_TIMEOUT = 5.0  # 최대 대기 시간 (초) - 서비스 시작 확인을 위한 최대 대기 시간
+    SERVICE_CHECK_INTERVAL = 0.5  # 상태 체크 간격 (초) - 서비스 상태를 폴링하는 간격
     
     def __init__(self):
         """서비스 매니저 초기화"""
@@ -145,12 +147,15 @@ class ServiceManager:
             print(f"⏳ {service['name']} 초기화 대기 중...")
             start_time = time.time()
             
-            while time.time() - start_time < self.SERVICE_START_TIMEOUT:
+            while True:
+                elapsed_time = time.time() - start_time
+                if elapsed_time >= self.SERVICE_START_TIMEOUT:
+                    break
+                
                 time.sleep(self.SERVICE_CHECK_INTERVAL)
                 
                 if self.get_service_status(service_key):
-                    elapsed = time.time() - start_time
-                    print(f"✅ {service['name']} 시작 확인됨 ({elapsed:.1f}초)")
+                    print(f"✅ {service['name']} 시작 확인됨 ({elapsed_time:.1f}초)")
                     return True
             
             # 타임아웃 후에도 시작 안 된 경우
