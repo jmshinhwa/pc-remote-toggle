@@ -54,7 +54,7 @@ class ServiceManager:
                 timeout=5
             )
             return bool(result.stdout.strip())
-        except Exception:
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
             return False
     
     def check_process_status(self, process_name):
@@ -64,7 +64,7 @@ class ServiceManager:
                 if proc.info['name'] and process_name.lower() in proc.info['name'].lower():
                     return True
             return False
-        except Exception:
+        except (psutil.Error, psutil.AccessDenied, psutil.NoSuchProcess):
             return False
     
     def get_service_status(self, service_key):
@@ -97,7 +97,7 @@ class ServiceManager:
                 if len(parts) >= 5:
                     pid = parts[-1]
                     return int(pid)
-        except Exception:
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError, ValueError, IndexError, OSError):
             pass
         return None
     
@@ -107,7 +107,7 @@ class ServiceManager:
             for proc in psutil.process_iter(['pid', 'name']):
                 if proc.info['name'] and process_name.lower() in proc.info['name'].lower():
                     return proc.info['pid']
-        except Exception:
+        except (psutil.Error, psutil.AccessDenied, psutil.NoSuchProcess):
             pass
         return None
     
