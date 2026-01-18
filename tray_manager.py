@@ -148,14 +148,15 @@ class ServiceManager:
             start_time = time.time()
             
             while True:
-                # 즉시 상태 확인 (첫 번째는 sleep 없이)
+                # 현재 경과 시간 계산
+                elapsed_time = time.time() - start_time
+                
+                # 상태 확인
                 if self.get_service_status(service_key):
-                    elapsed_time = time.time() - start_time
                     print(f"✅ {service['name']} 시작 확인됨 ({elapsed_time:.1f}초)")
                     return True
                 
                 # 타임아웃 체크
-                elapsed_time = time.time() - start_time
                 if elapsed_time >= self.SERVICE_START_TIMEOUT:
                     break
                 
