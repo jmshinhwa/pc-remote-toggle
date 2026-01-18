@@ -1,0 +1,32 @@
+name: Test
+
+on:
+  push:
+    branches: [main, copilot/*]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    
+    - name: Install dependencies
+      run: |
+        pip install pystray pillow psutil
+    
+    - name: Syntax check
+      run: |
+        python -m py_compile tray_manager.py
+        echo "✅ Syntax OK"
+    
+    - name: Import check
+      run: |
+        python -c "import tray_manager; print('✅ Import OK')"
