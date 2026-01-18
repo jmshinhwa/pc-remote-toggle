@@ -6,6 +6,7 @@ Windows 시스템 트레이 앱 - 서비스 매니저
 import subprocess
 import os
 import signal
+import time
 import pystray
 from PIL import Image, ImageDraw
 import psutil
@@ -135,7 +136,18 @@ class ServiceManager:
             
             service["process"] = process
             print(f"✅ {service['name']} 시작됨 (PID: {process.pid})")
-            return True
+            
+            # 서비스가 실제로 시작될 때까지 대기 (1-2초)
+            print(f"⏳ {service['name']} 초기화 대기 중...")
+            time.sleep(1.5)
+            
+            # 시작 확인
+            if self.get_service_status(service_key):
+                print(f"✅ {service['name']} 시작 확인됨")
+                return True
+            else:
+                print(f"⚠️ {service['name']} 시작 확인 실패 (상태 체크 필요)")
+                return True  # 프로세스는 시작되었으므로 True 반환
             
         except Exception as e:
             print(f"❌ {service['name']} 시작 실패: {e}")
@@ -197,9 +209,8 @@ class ServiceManager:
         service = self.services[service_key]
         is_running = self.get_service_status(service_key)
         
-        status = "🔵" if is_running else "🔴"
-        # 일정한 너비 유지를 위해 ljust 사용
-        return f"{service['name']:<20} {status}"
+        status = "[ON]" if is_running else "[OFF]"
+        return f"{service['name']} {status}"
     
     def quit_app(self, icon):
         """앱 종료 - 모든 서비스는 그대로 유지"""
