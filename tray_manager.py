@@ -54,7 +54,7 @@ class ServiceManager:
                 timeout=5
             )
             return bool(result.stdout.strip())
-        except:
+        except Exception:
             return False
     
     def check_process_status(self, process_name):
@@ -64,7 +64,7 @@ class ServiceManager:
                 if proc.info['name'] and process_name.lower() in proc.info['name'].lower():
                     return True
             return False
-        except:
+        except Exception:
             return False
     
     def get_service_status(self, service_key):
@@ -97,7 +97,7 @@ class ServiceManager:
                 if len(parts) >= 5:
                     pid = parts[-1]
                     return int(pid)
-        except:
+        except Exception:
             pass
         return None
     
@@ -107,7 +107,7 @@ class ServiceManager:
             for proc in psutil.process_iter(['pid', 'name']):
                 if proc.info['name'] and process_name.lower() in proc.info['name'].lower():
                     return proc.info['pid']
-        except:
+        except Exception:
             pass
         return None
     
@@ -165,7 +165,7 @@ class ServiceManager:
                 try:
                     os.kill(pid, signal.SIGTERM)
                     print(f"✅ {service['name']} 종료됨 (PID: {pid})")
-                except:
+                except (OSError, PermissionError):
                     # SIGTERM이 안 되면 taskkill 사용
                     subprocess.run(f"taskkill /F /PID {pid}", shell=True, timeout=5)
                     print(f"✅ {service['name']} 강제 종료됨 (PID: {pid})")
@@ -198,7 +198,8 @@ class ServiceManager:
         is_running = self.get_service_status(service_key)
         
         status = "🔵" if is_running else "🔴"
-        return f"{service['name']}        {status}"
+        # 일정한 너비 유지를 위해 ljust 사용
+        return f"{service['name']:<20} {status}"
     
     def quit_app(self, icon):
         """앱 종료 - 모든 서비스는 그대로 유지"""
