@@ -13,6 +13,10 @@ import psutil
 
 
 class ServiceManager:
+    # 서비스 시작 대기 설정
+    SERVICE_START_TIMEOUT = 5.0  # 최대 대기 시간 (초)
+    SERVICE_CHECK_INTERVAL = 0.5  # 상태 체크 간격 (초)
+    
     def __init__(self):
         """서비스 매니저 초기화"""
         self.services = {
@@ -139,15 +143,13 @@ class ServiceManager:
             
             # 서비스가 실제로 시작될 때까지 대기 (폴링 방식)
             print(f"⏳ {service['name']} 초기화 대기 중...")
-            max_wait_time = 5  # 최대 5초 대기
-            check_interval = 0.5  # 0.5초마다 체크
-            elapsed = 0
+            start_time = time.time()
             
-            while elapsed < max_wait_time:
-                time.sleep(check_interval)
-                elapsed += check_interval
+            while time.time() - start_time < self.SERVICE_START_TIMEOUT:
+                time.sleep(self.SERVICE_CHECK_INTERVAL)
                 
                 if self.get_service_status(service_key):
+                    elapsed = time.time() - start_time
                     print(f"✅ {service['name']} 시작 확인됨 ({elapsed:.1f}초)")
                     return True
             
