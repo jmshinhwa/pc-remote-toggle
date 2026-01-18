@@ -1,0 +1,39 @@
+name: Test
+
+on:
+  push:
+    branches: [main, copilot/*]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    
+    - name: Syntax check (all Python files)
+      run: |
+        python -m py_compile tray_manager.py
+        python -m py_compile config.py
+        python -m py_compile mcp_server.py
+        python -m py_compile toggle_app.py
+        echo "✅ All syntax OK"
+    
+    - name: Check required files exist
+      run: |
+        test -f tray_manager.py && echo "✅ tray_manager.py exists"
+        test -f requirements.txt && echo "✅ requirements.txt exists"
+        test -f .gitignore && echo "✅ .gitignore exists"
+        
+    - name: Verify requirements.txt has dependencies
+      run: |
+        grep -q "pystray" requirements.txt && echo "✅ pystray in requirements"
+        grep -q "psutil" requirements.txt && echo "✅ psutil in requirements"
+        grep -q "pillow" requirements.txt || grep -q "Pillow" requirements.txt && echo "✅ pillow in requirements"
