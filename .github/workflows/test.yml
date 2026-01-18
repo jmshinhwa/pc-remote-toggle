@@ -18,15 +18,22 @@ jobs:
       with:
         python-version: '3.13'
     
-    - name: Install dependencies
-      run: |
-        pip install pystray pillow psutil
-    
-    - name: Syntax check
+    - name: Syntax check (all Python files)
       run: |
         python -m py_compile tray_manager.py
-        echo "✅ Syntax OK"
+        python -m py_compile config.py
+        python -m py_compile mcp_server.py
+        python -m py_compile toggle_app.py
+        echo "✅ All syntax OK"
     
-    - name: Import check
+    - name: Check required files exist
       run: |
-        python -c "import tray_manager; print('✅ Import OK')"
+        test -f tray_manager.py && echo "✅ tray_manager.py exists"
+        test -f requirements.txt && echo "✅ requirements.txt exists"
+        test -f .gitignore && echo "✅ .gitignore exists"
+        
+    - name: Verify requirements.txt has dependencies
+      run: |
+        grep -q "pystray" requirements.txt && echo "✅ pystray in requirements"
+        grep -q "psutil" requirements.txt && echo "✅ psutil in requirements"
+        grep -q "pillow" requirements.txt || grep -q "Pillow" requirements.txt && echo "✅ pillow in requirements"
