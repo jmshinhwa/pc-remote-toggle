@@ -137,17 +137,23 @@ class ServiceManager:
             service["process"] = process
             print(f"✅ {service['name']} 시작됨 (PID: {process.pid})")
             
-            # 서비스가 실제로 시작될 때까지 대기 (1-2초)
+            # 서비스가 실제로 시작될 때까지 대기 (폴링 방식)
             print(f"⏳ {service['name']} 초기화 대기 중...")
-            time.sleep(1.5)
+            max_wait_time = 5  # 최대 5초 대기
+            check_interval = 0.5  # 0.5초마다 체크
+            elapsed = 0
             
-            # 시작 확인
-            if self.get_service_status(service_key):
-                print(f"✅ {service['name']} 시작 확인됨")
-                return True
-            else:
-                print(f"⚠️ {service['name']} 시작 확인 실패 (상태 체크 필요)")
-                return True  # 프로세스는 시작되었으므로 True 반환
+            while elapsed < max_wait_time:
+                time.sleep(check_interval)
+                elapsed += check_interval
+                
+                if self.get_service_status(service_key):
+                    print(f"✅ {service['name']} 시작 확인됨 ({elapsed:.1f}초)")
+                    return True
+            
+            # 타임아웃 후에도 시작 안 된 경우
+            print(f"⚠️ {service['name']} 시작 확인 실패 (타임아웃)")
+            return False
             
         except Exception as e:
             print(f"❌ {service['name']} 시작 실패: {e}")
