@@ -6,12 +6,19 @@ Windows 시스템 트레이 앱 - 서비스 매니저
 import subprocess
 import os
 import signal
+import time
 import pystray
 from PIL import Image, ImageDraw
 import psutil
 
 
 class ServiceManager:
+    """Windows 서비스 매니저 - 시스템 트레이를 통한 서비스 관리"""
+    
+    # 서비스 시작 대기 설정
+    SERVICE_START_TIMEOUT = 5.0  # 최대 대기 시간 (초) - 서비스 시작 확인을 위한 최대 대기 시간
+    SERVICE_CHECK_INTERVAL = 0.5  # 상태 체크 간격 (초) - 서비스 상태를 폴링하는 간격
+    
     def __init__(self):
         """서비스 매니저 초기화"""
         self.services = {
@@ -135,7 +142,30 @@ class ServiceManager:
             
             service["process"] = process
             print(f"✅ {service['name']} 시작됨 (PID: {process.pid})")
-            return True
+            
+            # 서비스가 실제로 시작될 때까지 대기 (폴링 방식)
+            print(f"⏳ {service['name']} 초기화 대기 중...")
+            start_time = time.time()
+            
+            while True:
+                # 현재 경과 시간 계산
+                elapsed_time = time.time() - start_time
+                
+                # 상태 확인
+                if self.get_service_status(service_key):
+                    print(f"✅ {service['name']} 시작 확인됨 ({elapsed_time:.1f}초)")
+                    return True
+                
+                # 타임아웃 체크
+                if elapsed_time >= self.SERVICE_START_TIMEOUT:
+                    break
+                
+                # 다음 체크 전 대기
+                time.sleep(self.SERVICE_CHECK_INTERVAL)
+            
+            # 타임아웃 후에도 시작 안 된 경우
+            print(f"⚠️ {service['name']} 시작 확인 실패 (타임아웃)")
+            return False
             
         except Exception as e:
             print(f"❌ {service['name']} 시작 실패: {e}")
@@ -197,9 +227,8 @@ class ServiceManager:
         service = self.services[service_key]
         is_running = self.get_service_status(service_key)
         
-        status = "🔵" if is_running else "🔴"
-        # 일정한 너비 유지를 위해 ljust 사용
-        return f"{service['name']:<20} {status}"
+        status = "[ON]" if is_running else "[OFF]"
+        return f"{service['name']} {status}"
     
     def quit_app(self, icon):
         """앱 종료 - 모든 서비스는 그대로 유지"""
