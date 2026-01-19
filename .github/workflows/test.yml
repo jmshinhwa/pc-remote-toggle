@@ -1,4 +1,4 @@
-name: Test
+name: Test & Build
 
 on:
   push:
@@ -8,32 +8,126 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up Python
+    - name: Set up Python 3.13
       uses: actions/setup-python@v5
       with:
         python-version: '3.13'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pystray pillow psutil fastmcp uvicorn
     
     - name: Syntax check (all Python files)
       run: |
         python -m py_compile tray_manager.py
         python -m py_compile config.py
-        python -m py_compile mcp_server.py
-        python -m py_compile toggle_app.py
+        python -m py_compile unified_server.py
+        python -m py_compile connectors/filesystem.py
+        python -m py_compile connectors/commander.py
         echo "✅ All syntax OK"
     
-    - name: Check required files exist
+    - name: Import test
       run: |
-        test -f tray_manager.py && echo "✅ tray_manager.py exists"
-        test -f requirements.txt && echo "✅ requirements.txt exists"
-        test -f .gitignore && echo "✅ .gitignore exists"
+        python -c "import tray_manager; print('✅ tray_manager import OK')"
+        python -c "import unified_server; print('✅ unified_server import OK')"
+        python -c "from connectors import filesystem, commander; print('✅ connectors import OK')"
+    
+    - name: Unit tests - Filesystem connector
+      run: |
+        python -c "
+        from connectors.filesystem import TOOLS, expand_path
+        import os
         
-    - name: Verify requirements.txt has dependencies
+        # Test 1: TOOLS list exists
+        assert len(TOOLS) >= 10, f'Expected 10+ tools, got {len(TOOLS)}'
+        print(f'✅ TOOLS: {len(TOOLS)} tools defined')
+        
+        # Test 2: expand_path works
+        result = expand_path('~')
+        assert os.path.expanduser('~') == result
+        print(f'✅ expand_path: {result}')
+        
+        print('✅ Filesystem connector tests passed')
+        "
+    
+    - name: Unit tests - Commander connector
       run: |
-        grep -q "pystray" requirements.txt && echo "✅ pystray in requirements"
-        grep -q "psutil" requirements.txt && echo "✅ psutil in requirements"
-        grep -q "pillow" requirements.txt || grep -q "Pillow" requirements.txt && echo "✅ pillow in requirements"
+        python -c "
+        from connectors.commander import TOOLS
+        
+        # Test 1: TOOLS list exists
+        assert len(TOOLS) >= 10, f'Expected 10+ tools, got {len(TOOLS)}'
+        print(f'✅ TOOLS: {len(TOOLS)} tools defined')
+        
+        # Test 2: Required tools exist
+        required = ['execute_command', 'start_process', 'git_command']
+        for tool in required:
+            assert tool in TOOLS, f'{tool} missing'
+        print(f'✅ Required tools present')
+        
+        print('✅ Commander connector tests passed')
+        "
+    
+    - name: Unit tests - ServiceManager
+      run: |
+        python -c "
+        from tray_manager import ServiceManager
+        
+        # Test 1: ServiceManager can be instantiated
+        manager = ServiceManager()
+        print('✅ ServiceManager instantiated')
+        
+        # Test 2: Services defined
+        assert 'mcp' in manager.services
+        assert 'github_sync' in manager.services
+        print('✅ Services defined: mcp, github_sync')
+        
+        # Test 3: Icon creation works
+        icon = manager.create_icon('green')
+        assert icon is not None
+        print('✅ Icon creation works')
+        
+        print('✅ ServiceManager tests passed')
+        "
+    
+    - name: Check required files
+      run: |
+        if (Test-Path tray_manager.py) { echo "✅ tray_manager.py" }
+        if (Test-Path unified_server.py) { echo "✅ unified_server.py" }
+        if (Test-Path config.py) { echo "✅ config.py" }
+        if (Test-Path requirements.txt) { echo "✅ requirements.txt" }
+        if (Test-Path connectors/filesystem.py) { echo "✅ connectors/filesystem.py" }
+        if (Test-Path connectors/commander.py) { echo "✅ connectors/commander.py" }
+
+  build:
+    needs: test
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pystray pillow psutil fastmcp uvicorn pyinstaller
+    
+    - name: Build EXE
+      run: |
+        pyinstaller --onefile --noconsole --name ServiceManager tray_manager.py
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ServiceManager-Windows
+        path: dist/ServiceManager.exe
