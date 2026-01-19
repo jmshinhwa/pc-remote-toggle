@@ -19,7 +19,7 @@ jobs:
     
     - name: Install dependencies
       run: |
-        pip install pystray psutil pillow pyinstaller mcp fastmcp uvicorn starlette
+        pip install pystray psutil pillow pyinstaller mcp fastmcp uvicorn starlette pywin32
     
     - name: Build EXE
       run: |
