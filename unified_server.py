@@ -15,11 +15,11 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 import uvicorn
 
+# 설정 임포트
+from config import API_KEY, TUNNEL_PORT
+
 # 커넥터 임포트
 from connectors import filesystem, commander
-
-# ==================== 설정 ====================
-API_KEY = "yoojin-secret-2026-xyz789"
 
 # ==================== MCP 서버 생성 ====================
 mcp = FastMCP(name="PC-Remote-Unified", stateless_http=True, json_response=True)
@@ -43,8 +43,8 @@ if __name__ == "__main__":
     print("\n" + "="*60)
     print("[PC-Remote] Unified MCP Server Starting...")
     print("="*60)
-    print(f"URL: http://127.0.0.1:8765/mcp")
-    print(f"API Key: {API_KEY}")
+    print(f"URL: http://127.0.0.1:{TUNNEL_PORT}/mcp")
+    print(f"API Key: {'*' * (len(API_KEY) - 4)}{API_KEY[-4:]}")  # Masked API key
     print(f"")
     print(f"Available Tools:")
     print(f"  Filesystem: {len(filesystem.TOOLS)} tools")
@@ -54,4 +54,4 @@ if __name__ == "__main__":
     
     app = mcp.streamable_http_app()
     app.add_middleware(APIKeyMiddleware)
-    uvicorn.run(app, host="127.0.0.1", port=8765, log_level="warning")
+    uvicorn.run(app, host="127.0.0.1", port=TUNNEL_PORT, log_level="warning")
