@@ -9,7 +9,6 @@ import sys
 import shutil
 from typing import List
 from fastmcp import FastMCP
-from fastapi import Request, HTTPException
 from config import API_KEY
 
 # MCP 서버 생성

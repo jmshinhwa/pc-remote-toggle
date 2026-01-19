@@ -40,7 +40,6 @@ jobs:
         grep -q "pillow" requirements.txt || grep -q "Pillow" requirements.txt && echo "✅ pillow in requirements"
         grep -q "fastmcp" requirements.txt && echo "✅ fastmcp in requirements"
         grep -q "uvicorn" requirements.txt && echo "✅ uvicorn in requirements"
-        grep -q "fastapi" requirements.txt && echo "✅ fastapi in requirements"
     
     - name: Install dependencies
       run: |
