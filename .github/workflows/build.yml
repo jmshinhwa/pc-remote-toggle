@@ -19,15 +19,32 @@ jobs:
     
     - name: Install dependencies
       run: |
-        pip install pystray psutil pillow pyinstaller
+        pip install pystray psutil pillow pyinstaller mcp fastmcp uvicorn starlette
     
     - name: Build EXE
       run: |
         pyinstaller --onefile --noconsole --name ServiceManager tray_manager.py
     
-    - name: Upload EXE
+    - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ServiceManager
         path: dist/ServiceManager.exe
         retention-days: 30
+    
+    - name: Get short SHA
+      id: sha
+      run: echo "short=$(git rev-parse --short HEAD)" >> $env:GITHUB_OUTPUT
+    
+    - name: Delete old dev release
+      run: |
+        gh release delete dev --yes || true
+        git push origin :refs/tags/dev || true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Create Release
+      run: |
+        gh release create dev dist/ServiceManager.exe --title "Latest Build (${{ steps.sha.outputs.short }})" --notes "자동 빌드 - ${{ github.sha }}" --prerelease
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
