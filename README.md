@@ -70,11 +70,12 @@ ServiceManager.exe
 3. API Key: `config.py`에 설정된 값 사용
 4. 콘솔에 표시된 정보 확인:
    - URL: `http://127.0.0.1:8765/mcp`
-   - API Key: `yoojin-secret-2026-xyz789`
+   - API Key: `config.py`에서 설정한 키 (마스킹되어 표시됨)
    - 제공 도구: 24개 (Filesystem 12개 + Commander 12개)
 
 5. Claude 웹에서 사용시 URL에 API key 추가:
-   - `http://127.0.0.1:8765/mcp?key=yoojin-secret-2026-xyz789`
+   - `http://127.0.0.1:8765/mcp?key=YOUR_API_KEY`
+   - API_KEY는 `config.py` 파일에서 확인
    - 또는 Cloudflare 터널 사용
 
 ### 서비스 매니저
