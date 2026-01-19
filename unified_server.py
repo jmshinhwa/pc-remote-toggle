@@ -44,7 +44,9 @@ if __name__ == "__main__":
     print("[PC-Remote] Unified MCP Server Starting...")
     print("="*60)
     print(f"URL: http://127.0.0.1:{TUNNEL_PORT}/mcp")
-    print(f"API Key: {'*' * (len(API_KEY) - 4)}{API_KEY[-4:]}")  # Masked API key
+    # Mask API key for security (show last 4 chars only)
+    masked_key = f"{'*' * max(0, len(API_KEY) - 4)}{API_KEY[-4:]}" if len(API_KEY) >= 4 else "***"
+    print(f"API Key: {masked_key}")
     print(f"")
     print(f"Available Tools:")
     print(f"  Filesystem: {len(filesystem.TOOLS)} tools")
