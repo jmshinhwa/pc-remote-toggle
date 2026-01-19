@@ -33,17 +33,19 @@ pip install -r requirements.txt
 
 ## 🚀 실행
 
-### MCP 서버 (Cloudflare 터널 방식)
+### MCP 서버 (통합 서버)
 
 ```powershell
 cd ~/Desktop/pc-remote-toggle
-python mcp_server.py
+python unified_server.py
 ```
 
 또는 창 없이:
 ```powershell
-pythonw mcp_server.py
+pythonw unified_server.py
 ```
+
+서버는 포트 8765에서 실행되며, 모든 도구(Filesystem + Commander)를 제공합니다.
 
 ### 서비스 매니저 (트레이 앱)
 
@@ -57,29 +59,34 @@ python tray_manager.py
 ServiceManager.exe
 ```
 
+트레이 앱을 통해 MCP 서버와 깃허브 싱크를 ON/OFF 할 수 있습니다.
+
 ## 📋 사용법
 
 ### MCP 서버
 
-1. 실행 → 시스템 트레이에 🔴 아이콘
-2. 우클릭 → "🟢 터널 ON"
-3. 콘솔에 표시된 정보:
-   - MCP URL: `https://xxx.trycloudflare.com/mcp`
-   - API Key: `config.py`에 설정된 값
+1. `unified_server.py` 실행
+2. 서버가 포트 8765에서 시작됨
+3. API Key: `config.py`에 설정된 값 사용
+4. 콘솔에 표시된 정보 확인:
+   - URL: `http://127.0.0.1:8765/mcp`
+   - API Key: `yoojin-secret-2026-xyz789`
+   - 제공 도구: 24개 (Filesystem 12개 + Commander 12개)
 
-4. Claude 웹 → 설정 → 커넥터 → 커스텀 추가
-   - URL: 위에 표시된 MCP URL 입력
+5. Claude 웹에서 사용시 URL에 API key 추가:
+   - `http://127.0.0.1:8765/mcp?key=yoojin-secret-2026-xyz789`
+   - 또는 Cloudflare 터널 사용
 
 ### 서비스 매니저
 
-1. `ServiceManager.exe` 실행 → 시스템 트레이에 아이콘 생성
-2. 우클릭 → 메뉴 표시:
-   - 파일시스템 🔵/🔴
-   - 데스크탑 커맨더 🔵/🔴
-   - 깃허브 오토싱크 🔵/🔴
+1. `ServiceManager.exe` 또는 `python tray_manager.py` 실행
+2. 시스템 트레이에 아이콘 생성
+3. 우클릭 → 메뉴 표시:
+   - 🔵 MCP 서버 [ON/OFF]
+   - 🔵 깃허브 싱크 [ON/OFF]
    - 종료
-3. 메뉴 클릭 → 서비스 ON/OFF 토글
-4. 🔵 파란불 = 실행 중, 🔴 빨간불 = 중지
+4. 메뉴 클릭 → 서비스 ON/OFF 토글
+5. 🔵 파란불 = 실행 중, 🔴 빨간불 = 중지
 
 ## 🔧 서비스 매니저 빌드
 
