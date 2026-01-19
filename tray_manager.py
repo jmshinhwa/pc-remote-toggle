@@ -1,6 +1,6 @@
 """
-Windows 시스템 트레이 앱 - 서비스 매니저
-파일시스템, 데스크탑 커맨더, 깃허브 오토싱크 서비스 ON/OFF 관리
+Windows 시스템 트레이 앱 - 간소화된 서비스 매니저
+MCP 서버, 깃허브 싱크 ON/OFF 관리
 """
 
 import subprocess
@@ -22,20 +22,14 @@ class ServiceManager:
     def __init__(self):
         """서비스 매니저 초기화"""
         self.services = {
-            "filesystem": {
-                "name": "파일시스템",
+            "mcp": {
+                "name": "MCP 서버",
                 "port": 8765,
-                "command": r'"C:\Program Files\Python313\python.exe" "C:\Users\user\Desktop\pc-remote-toggle\filesystem_server.py"',
+                "command": r'"C:\Program Files\Python313\python.exe" "C:\Users\user\Desktop\pc-remote-toggle\unified_server.py"',
                 "process": None
             },
-            "commander": {
-                "name": "데스크탑 커맨더",
-                "port": 8766,
-                "command": r'"C:\Program Files\Python313\python.exe" "C:\Users\user\Desktop\pc-remote-toggle\commander_server.py"',
-                "process": None
-            },
-            "autosync": {
-                "name": "깃허브 오토싱크",
+            "github_sync": {
+                "name": "깃허브 싱크",
                 "port": None,
                 "command": r"C:\Users\user\Desktop\V128프로젝트\V128_Sync.exe",
                 "process_name": "V128_Sync",
@@ -223,12 +217,15 @@ class ServiceManager:
         icon.update_menu()
     
     def get_menu_text(self, service_key):
-        """메뉴 텍스트 생성 (서비스명 + 상태)"""
+        """메뉴 텍스트 생성 (서비스명 + 상태 아이콘)"""
         service = self.services[service_key]
         is_running = self.get_service_status(service_key)
         
-        status = "[ON]" if is_running else "[OFF]"
-        return f"{service['name']} {status}"
+        # 상태 아이콘: 🔵 ON, 🔴 OFF
+        status_icon = "🔵" if is_running else "🔴"
+        status_text = "[ON]" if is_running else "[OFF]"
+        
+        return f"{status_icon} {service['name']} {status_text}"
     
     def quit_app(self, icon):
         """앱 종료 - 모든 서비스는 그대로 유지"""
@@ -236,19 +233,15 @@ class ServiceManager:
         icon.stop()
     
     def create_menu(self):
-        """메뉴 생성"""
+        """메뉴 생성 - MCP 서버와 깃허브 싱크만"""
         return pystray.Menu(
             pystray.MenuItem(
-                lambda _: self.get_menu_text("filesystem"),
-                lambda icon, item: self.toggle_service("filesystem", icon)
+                lambda _: self.get_menu_text("mcp"),
+                lambda icon, item: self.toggle_service("mcp", icon)
             ),
             pystray.MenuItem(
-                lambda _: self.get_menu_text("commander"),
-                lambda icon, item: self.toggle_service("commander", icon)
-            ),
-            pystray.MenuItem(
-                lambda _: self.get_menu_text("autosync"),
-                lambda icon, item: self.toggle_service("autosync", icon)
+                lambda _: self.get_menu_text("github_sync"),
+                lambda icon, item: self.toggle_service("github_sync", icon)
             ),
             pystray.MenuItem("종료", self.quit_app)
         )
