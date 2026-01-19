@@ -36,7 +36,7 @@ def list_directory(path: str = "~") -> dict:
                     "is_dir": os.path.isdir(full_path),
                     "size": os.path.getsize(full_path) if os.path.isfile(full_path) else 0
                 })
-            except:
+            except (PermissionError, OSError):
                 result.append({"name": item, "is_dir": False, "size": 0})
         return {"success": True, "path": path, "items": result}
     except Exception as e:
@@ -102,7 +102,7 @@ def edit_block(path: str, start_line: int, end_line: int, new_content: str) -> d
         with open(path, "r", encoding="utf-8") as f:
             lines = f.readlines()
         
-        # 라인 번호는 1부터 시작
+        # 라인 번호는 1부터 시작, end_line 포함
         lines[start_line-1:end_line] = [new_content + '\n']
         
         with open(path, "w", encoding="utf-8") as f:
@@ -194,7 +194,7 @@ def search_content(directory: str, text: str, max_results: int = 50) -> dict:
                             results.append(filepath)
                             if len(results) >= max_results:
                                 break
-                except:
+                except (UnicodeDecodeError, PermissionError, OSError):
                     continue
             if len(results) >= max_results:
                 break
@@ -290,11 +290,11 @@ def read_process_output(session_id: str, timeout: int = 1) -> dict:
         stderr_data = ""
         
         if process.poll() is not None:
-            # 프로세스가 종료됨
-            if process.stdout:
-                stdout_data = process.stdout.read()
-            if process.stderr:
-                stderr_data = process.stderr.read()
+            # 프로세스가 종료됨 - communicate로 남은 출력 읽기
+            try:
+                stdout_data, stderr_data = process.communicate(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                pass
         
         return {
             "success": True,
@@ -333,7 +333,7 @@ def force_terminate(session_id: str) -> dict:
         process.terminate()
         try:
             process.wait(timeout=5)
-        except:
+        except subprocess.TimeoutExpired:
             process.kill()
         del process_sessions[session_id]
         
