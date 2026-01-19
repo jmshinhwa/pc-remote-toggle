@@ -1,90 +1,58 @@
 """
-Windows 시스템 트레이 앱 - 간소화 버전
-MCP 서버 + 깃허브 싱크 ON/OFF 관리
+PC Remote Toggle - 외부접속 ON/OFF 트레이 앱
+서버 1개 (포트 8765) + Host로 커넥터 구분
 
-메뉴:
-1. MCP 서버 [ON/OFF]
-2. 깃허브 싱크 [ON/OFF]  
-3. 종료
+Claude.ai 웹에서 등록:
+- pc.jmshinhwa.org/mcp?key=yoojin-secret-2026-xyz789 → Filesystem
+- pc-cmd.jmshinhwa.org/mcp?key=yoojin-secret-2026-xyz789 → Commander
 """
 import subprocess
 import os
-import signal
+import sys
 import time
 import pystray
 from PIL import Image, ImageDraw
-import psutil
+
+# 설정
+SERVER_PORT = 8765
+SERVER_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "unified_server.py")
+PYTHON_PATH = sys.executable  # 현재 Python 경로 사용
 
 
-class ServiceManager:
-    """간소화된 서비스 매니저 - 2개 서비스만"""
-    
-    SERVICE_START_TIMEOUT = 5.0
-    SERVICE_CHECK_INTERVAL = 0.5
+class PCRemoteToggle:
+    """외부접속 ON/OFF 토글 - 단순화 버전"""
     
     def __init__(self):
-        self.services = {
-            "mcp": {
-                "name": "MCP 서버",
-                "port": 8765,
-                "command": r'"C:\Program Files\Python313\python.exe" "C:\Users\user\Desktop\pc-remote-toggle\unified_server.py"',
-                "process": None
-            },
-            "github_sync": {
-                "name": "깃허브 싱크",
-                "process_name": "V128_Sync",
-                "command": r"C:\Users\user\Desktop\V128프로젝트\V128_Sync.exe",
-                "process": None
-            }
-        }
+        self.server_process = None
+        self.is_running = False
     
-    def create_icon(self, color='gray'):
-        """트레이 아이콘 생성"""
+    def create_icon(self, is_on):
+        """트레이 아이콘 생성 (ON=초록, OFF=빨강)"""
+        color = '#00CC00' if is_on else '#CC0000'
         image = Image.new('RGB', (64, 64), color='white')
         draw = ImageDraw.Draw(image)
-        draw.ellipse([8, 8, 56, 56], fill=color, outline='black', width=2)
+        draw.ellipse([8, 8, 56, 56], fill=color, outline='#333333', width=2)
         return image
     
-    def check_port_status(self, port):
-        """포트가 LISTENING 상태인지 확인"""
+    def check_port(self):
+        """포트 8765가 열려있는지 확인"""
         try:
             result = subprocess.run(
-                f'netstat -ano | findstr ":{port}" | findstr "LISTENING"',
-                shell=True, capture_output=True, text=True, timeout=5
+                f'netstat -ano | findstr ":{SERVER_PORT}" | findstr "LISTENING"',
+                shell=True, capture_output=True, text=True, timeout=3
             )
             return bool(result.stdout.strip())
         except:
             return False
     
-    def check_process_status(self, process_name):
-        """프로세스명으로 실행 여부 확인"""
-        try:
-            for proc in psutil.process_iter(['name']):
-                if proc.info['name'] and process_name.lower() in proc.info['name'].lower():
-                    return True
-            return False
-        except:
-            return False
-    
-    def get_service_status(self, service_key):
-        """서비스 상태 확인"""
-        service = self.services[service_key]
-        
-        if service.get("port"):
-            return self.check_port_status(service["port"])
-        elif service.get("process_name"):
-            return self.check_process_status(service["process_name"])
-        return False
-    
-    def get_pid_by_port(self, port):
+    def get_pid_by_port(self):
         """포트로 PID 찾기"""
         try:
             result = subprocess.run(
-                f'netstat -ano | findstr ":{port}" | findstr "LISTENING"',
-                shell=True, capture_output=True, text=True, timeout=5
+                f'netstat -ano | findstr ":{SERVER_PORT}" | findstr "LISTENING"',
+                shell=True, capture_output=True, text=True, timeout=3
             )
-            lines = result.stdout.strip().split('\n')
-            for line in lines:
+            for line in result.stdout.strip().split('\n'):
                 parts = line.split()
                 if len(parts) >= 5:
                     return int(parts[-1])
@@ -92,152 +60,129 @@ class ServiceManager:
             pass
         return None
     
-    def get_pid_by_name(self, process_name):
-        """프로세스명으로 PID 찾기"""
-        try:
-            for proc in psutil.process_iter(['pid', 'name']):
-                if proc.info['name'] and process_name.lower() in proc.info['name'].lower():
-                    return proc.info['pid']
-        except:
-            pass
-        return None
-    
-    def start_service(self, service_key):
-        """서비스 시작"""
-        service = self.services[service_key]
-        
-        if self.get_service_status(service_key):
-            print(f"✅ {service['name']} 이미 실행 중")
+    def start_server(self):
+        """MCP 서버 시작"""
+        if self.is_running or self.check_port():
+            print("⚠️ 서버 이미 실행 중")
+            self.is_running = True
             return True
         
         try:
-            print(f"🚀 {service['name']} 시작 중...")
+            print(f"🚀 서버 시작 중... ({SERVER_SCRIPT})")
             
-            process = subprocess.Popen(
-                service["command"],
-                shell=True,
-                creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0,
+            self.server_process = subprocess.Popen(
+                [PYTHON_PATH, SERVER_SCRIPT],
+                creationflags=subprocess.CREATE_NO_WINDOW,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )
             
-            service["process"] = process
-            
-            # 시작 확인 대기
-            start_time = time.time()
-            while time.time() - start_time < self.SERVICE_START_TIMEOUT:
-                if self.get_service_status(service_key):
-                    print(f"✅ {service['name']} 시작됨 (PID: {process.pid})")
+            # 시작 대기 (최대 5초)
+            for _ in range(10):
+                time.sleep(0.5)
+                if self.check_port():
+                    self.is_running = True
+                    print(f"✅ 서버 시작됨! (PID: {self.server_process.pid})")
+                    print(f"   → pc.jmshinhwa.org/mcp (Filesystem)")
+                    print(f"   → pc-cmd.jmshinhwa.org/mcp (Commander)")
                     return True
-                time.sleep(self.SERVICE_CHECK_INTERVAL)
             
-            print(f"⚠️ {service['name']} 시작 확인 실패")
+            print("⚠️ 서버 시작 확인 실패")
             return False
             
         except Exception as e:
-            print(f"❌ {service['name']} 시작 실패: {e}")
+            print(f"❌ 서버 시작 실패: {e}")
             return False
     
-    def stop_service(self, service_key):
-        """서비스 종료"""
-        service = self.services[service_key]
-        
-        if not self.get_service_status(service_key):
-            print(f"✅ {service['name']} 이미 중지됨")
+    def stop_server(self):
+        """MCP 서버 종료"""
+        if not self.is_running and not self.check_port():
+            print("⚠️ 서버 이미 중지됨")
             return True
         
         try:
-            print(f"🛑 {service['name']} 종료 중...")
+            print("🛑 서버 종료 중...")
             
-            pid = None
-            if service.get("port"):
-                pid = self.get_pid_by_port(service["port"])
-            elif service.get("process_name"):
-                pid = self.get_pid_by_name(service["process_name"])
+            # 방법 1: 저장된 프로세스로 종료
+            if self.server_process:
+                self.server_process.terminate()
+                self.server_process.wait(timeout=3)
+                self.server_process = None
             
+            # 방법 2: 포트로 PID 찾아서 종료
+            pid = self.get_pid_by_port()
             if pid:
-                try:
-                    os.kill(pid, signal.SIGTERM)
-                    print(f"✅ {service['name']} 종료됨 (PID: {pid})")
-                except:
-                    subprocess.run(f"taskkill /F /PID {pid}", shell=True, timeout=5)
-                    print(f"✅ {service['name']} 강제 종료됨 (PID: {pid})")
-                
-                service["process"] = None
-                return True
-            else:
-                print(f"⚠️ {service['name']} PID를 찾을 수 없음")
-                return False
-                
+                subprocess.run(f"taskkill /F /PID {pid}", shell=True, timeout=3)
+            
+            self.is_running = False
+            print("✅ 서버 종료됨")
+            return True
+            
         except Exception as e:
-            print(f"❌ {service['name']} 종료 실패: {e}")
+            print(f"❌ 서버 종료 실패: {e}")
+            # 강제 종료 시도
+            try:
+                pid = self.get_pid_by_port()
+                if pid:
+                    subprocess.run(f"taskkill /F /PID {pid}", shell=True)
+                self.is_running = False
+            except:
+                pass
             return False
     
-    def toggle_service(self, service_key, icon):
-        """서비스 토글"""
-        if self.get_service_status(service_key):
-            self.stop_service(service_key)
+    def toggle_server(self, icon, item):
+        """서버 토글"""
+        if self.is_running:
+            self.stop_server()
         else:
-            self.start_service(service_key)
+            self.start_server()
+        
+        # 아이콘 & 메뉴 업데이트
+        icon.icon = self.create_icon(self.is_running)
+        icon.title = "외부접속 ON" if self.is_running else "외부접속 OFF"
         icon.update_menu()
     
-    def get_menu_text(self, service_key):
-        """메뉴 텍스트 생성"""
-        service = self.services[service_key]
-        is_running = self.get_service_status(service_key)
-        status_icon = "🔵" if is_running else "🔴"
-        status_text = "[ON]" if is_running else "[OFF]"
-        return f"{status_icon} {service['name']} {status_text}"
+    def get_menu_text(self):
+        """메뉴 텍스트"""
+        if self.is_running:
+            return "🟢 외부접속 [ON] → 클릭하면 OFF"
+        return "🔴 외부접속 [OFF] → 클릭하면 ON"
     
-    def stop_all_and_quit(self, icon):
-        """모든 서비스 종료 후 앱 종료"""
-        print("\n🛑 모든 서비스 종료 중...")
-        
-        for key in self.services:
-            if self.get_service_status(key):
-                self.stop_service(key)
-        
-        print("👋 ServiceManager 종료")
+    def quit_app(self, icon):
+        """앱 종료 (서버도 같이 종료)"""
+        print("\n👋 종료 중...")
+        self.stop_server()
         icon.stop()
-    
-    def create_menu(self):
-        """메뉴 생성"""
-        return pystray.Menu(
-            pystray.MenuItem(
-                lambda _: self.get_menu_text("mcp"),
-                lambda icon, item: self.toggle_service("mcp", icon)
-            ),
-            pystray.MenuItem(
-                lambda _: self.get_menu_text("github_sync"),
-                lambda icon, item: self.toggle_service("github_sync", icon)
-            ),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("종료", self.stop_all_and_quit)
-        )
     
     def run(self):
         """트레이 앱 실행"""
+        # 시작 시 상태 확인
+        self.is_running = self.check_port()
+        
         icon = pystray.Icon(
-            "ServiceManager",
-            self.create_icon('orange'),
-            "Service Manager",
-            menu=self.create_menu()
+            "PC-Remote",
+            self.create_icon(self.is_running),
+            "외부접속 ON" if self.is_running else "외부접속 OFF",
+            menu=pystray.Menu(
+                pystray.MenuItem(
+                    lambda _: self.get_menu_text(),
+                    self.toggle_server
+                ),
+                pystray.Menu.SEPARATOR,
+                pystray.MenuItem("종료", self.quit_app)
+            )
         )
         
         print("\n" + "="*50)
-        print("🔧 Service Manager 시작됨!")
-        print("시스템 트레이 아이콘을 우클릭하세요")
+        print("🖥️  PC Remote Toggle 시작!")
         print("="*50)
-        
-        print("\n📊 현재 서비스 상태:")
-        for key, service in self.services.items():
-            status = "🔵 실행중" if self.get_service_status(key) else "🔴 중지"
-            print(f"  {service['name']}: {status}")
-        print()
+        print("시스템 트레이 아이콘을 우클릭하세요")
+        print(f"현재 상태: {'🟢 ON' if self.is_running else '🔴 OFF'}")
+        print("="*50 + "\n")
         
         icon.run()
 
 
 if __name__ == "__main__":
-    manager = ServiceManager()
-    manager.run()
+    app = PCRemoteToggle()
+    app.run()
