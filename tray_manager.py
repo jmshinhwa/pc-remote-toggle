@@ -1,6 +1,11 @@
 """
-Windows 시스템 트레이 앱 - 서비스 매니저
-파일시스템, 데스크탑 커맨더, 깃허브 오토싱크 서비스 ON/OFF 관리
+Windows 시스템 트레이 앱 - 간소화 버전
+통합 MCP 서버 + 깃허브 싱크 ON/OFF 관리
+
+메뉴:
+1. 외부접속허용 [ON/OFF] - 통합 MCP 서버 (Filesystem + Commander)
+2. 깃허브싱크 [ON/OFF]
+3. 종료
 """
 
 import subprocess
@@ -13,32 +18,24 @@ import psutil
 
 
 class ServiceManager:
-    """Windows 서비스 매니저 - 시스템 트레이를 통한 서비스 관리"""
+    """간소화된 서비스 매니저 - 2개 서비스만"""
     
-    # 서비스 시작 대기 설정
-    SERVICE_START_TIMEOUT = 5.0  # 최대 대기 시간 (초) - 서비스 시작 확인을 위한 최대 대기 시간
-    SERVICE_CHECK_INTERVAL = 0.5  # 상태 체크 간격 (초) - 서비스 상태를 폴링하는 간격
+    SERVICE_START_TIMEOUT = 5.0
+    SERVICE_CHECK_INTERVAL = 0.5
     
     def __init__(self):
         """서비스 매니저 초기화"""
         self.services = {
-            "filesystem": {
-                "name": "파일시스템",
+            "mcp": {
+                "name": "외부접속허용",
                 "port": 8765,
-                "command": r'"C:\Program Files\Python313\python.exe" "C:\Users\user\Desktop\pc-remote-toggle\filesystem_server.py"',
+                "command": r'"C:\Program Files\Python313\python.exe" "C:\Users\user\Desktop\pc-remote-toggle\unified_server.py"',
                 "process": None
             },
-            "commander": {
-                "name": "데스크탑 커맨더",
-                "port": 8766,
-                "command": r'"C:\Program Files\Python313\python.exe" "C:\Users\user\Desktop\pc-remote-toggle\commander_server.py"',
-                "process": None
-            },
-            "autosync": {
-                "name": "깃허브 오토싱크",
-                "port": None,
-                "command": r"C:\Users\user\Desktop\V128프로젝트\V128_Sync.exe",
+            "github_sync": {
+                "name": "깃허브싱크",
                 "process_name": "V128_Sync",
+                "command": r"C:\Users\user\Desktop\V128프로젝트\V128_Sync.exe",
                 "process": None
             }
         }
@@ -79,10 +76,8 @@ class ServiceManager:
         service = self.services[service_key]
         
         if service.get("port"):
-            # 포트 기반 서비스
             return self.check_port_status(service["port"])
         elif service.get("process_name"):
-            # 프로세스명 기반 서비스
             return self.check_process_status(service["process_name"])
         
         return False
@@ -122,16 +117,13 @@ class ServiceManager:
         """서비스 시작"""
         service = self.services[service_key]
         
-        # 이미 실행 중이면 무시
         if self.get_service_status(service_key):
             print(f"✅ {service['name']} 이미 실행 중")
             return True
         
         try:
-            # 서비스 실행
             print(f"🚀 {service['name']} 시작 중...")
             
-            # Windows에서 백그라운드 프로세스로 실행
             process = subprocess.Popen(
                 service["command"],
                 shell=True,
@@ -141,29 +133,22 @@ class ServiceManager:
             )
             
             service["process"] = process
-            print(f"✅ {service['name']} 시작됨 (PID: {process.pid})")
             
-            # 서비스가 실제로 시작될 때까지 대기 (폴링 방식)
             print(f"⏳ {service['name']} 초기화 대기 중...")
             start_time = time.time()
             
             while True:
-                # 현재 경과 시간 계산
                 elapsed_time = time.time() - start_time
                 
-                # 상태 확인
                 if self.get_service_status(service_key):
-                    print(f"✅ {service['name']} 시작 확인됨 ({elapsed_time:.1f}초)")
+                    print(f"✅ {service['name']} 시작됨 (PID: {process.pid}, {elapsed_time:.1f}초)")
                     return True
                 
-                # 타임아웃 체크
                 if elapsed_time >= self.SERVICE_START_TIMEOUT:
                     break
                 
-                # 다음 체크 전 대기
                 time.sleep(self.SERVICE_CHECK_INTERVAL)
             
-            # 타임아웃 후에도 시작 안 된 경우
             print(f"⚠️ {service['name']} 시작 확인 실패 (타임아웃)")
             return False
             
@@ -175,7 +160,6 @@ class ServiceManager:
         """서비스 종료"""
         service = self.services[service_key]
         
-        # 실행 중이 아니면 무시
         if not self.get_service_status(service_key):
             print(f"✅ {service['name']} 이미 중지됨")
             return True
@@ -183,7 +167,6 @@ class ServiceManager:
         try:
             print(f"🛑 {service['name']} 종료 중...")
             
-            # PID 찾기
             pid = None
             if service.get("port"):
                 pid = self.get_pid_by_port(service["port"])
@@ -191,12 +174,10 @@ class ServiceManager:
                 pid = self.get_pid_by_name(service["process_name"])
             
             if pid:
-                # Windows에서 프로세스 강제 종료
                 try:
                     os.kill(pid, signal.SIGTERM)
                     print(f"✅ {service['name']} 종료됨 (PID: {pid})")
                 except (OSError, PermissionError):
-                    # SIGTERM이 안 되면 taskkill 사용
                     subprocess.run(f"taskkill /F /PID {pid}", shell=True, timeout=5)
                     print(f"✅ {service['name']} 강제 종료됨 (PID: {pid})")
                 
@@ -219,7 +200,6 @@ class ServiceManager:
         else:
             self.start_service(service_key)
         
-        # 메뉴 갱신
         icon.update_menu()
     
     def get_menu_text(self, service_key):
@@ -227,11 +207,12 @@ class ServiceManager:
         service = self.services[service_key]
         is_running = self.get_service_status(service_key)
         
-        status = "[ON]" if is_running else "[OFF]"
-        return f"{service['name']} {status}"
+        status_icon = "🔵" if is_running else "🔴"
+        status_text = "[ON]" if is_running else "[OFF]"
+        return f"{status_icon} {service['name']} {status_text}"
     
     def quit_app(self, icon):
-        """앱 종료 - 모든 서비스는 그대로 유지"""
+        """앱 종료 - 서비스는 그대로 유지"""
         print("\n👋 ServiceManager 종료")
         icon.stop()
     
@@ -239,17 +220,14 @@ class ServiceManager:
         """메뉴 생성"""
         return pystray.Menu(
             pystray.MenuItem(
-                lambda _: self.get_menu_text("filesystem"),
-                lambda icon, item: self.toggle_service("filesystem", icon)
+                lambda _: self.get_menu_text("mcp"),
+                lambda icon, item: self.toggle_service("mcp", icon)
             ),
             pystray.MenuItem(
-                lambda _: self.get_menu_text("commander"),
-                lambda icon, item: self.toggle_service("commander", icon)
+                lambda _: self.get_menu_text("github_sync"),
+                lambda icon, item: self.toggle_service("github_sync", icon)
             ),
-            pystray.MenuItem(
-                lambda _: self.get_menu_text("autosync"),
-                lambda icon, item: self.toggle_service("autosync", icon)
-            ),
+            pystray.Menu.SEPARATOR,
             pystray.MenuItem("종료", self.quit_app)
         )
     
@@ -267,7 +245,6 @@ class ServiceManager:
         print("시스템 트레이 아이콘을 우클릭하세요")
         print("="*50)
         
-        # 초기 상태 출력
         print("\n📊 현재 서비스 상태:")
         for key, service in self.services.items():
             status = "🔵 실행중" if self.get_service_status(key) else "🔴 중지"
