@@ -22,6 +22,7 @@ jobs:
       run: |
         python -m py_compile tray_manager.py
         python -m py_compile config.py
+        python -m py_compile unified_server.py
         python -m py_compile mcp_server.py
         python -m py_compile toggle_app.py
         echo "✅ All syntax OK"
@@ -37,3 +38,34 @@ jobs:
         grep -q "pystray" requirements.txt && echo "✅ pystray in requirements"
         grep -q "psutil" requirements.txt && echo "✅ psutil in requirements"
         grep -q "pillow" requirements.txt || grep -q "Pillow" requirements.txt && echo "✅ pillow in requirements"
+        grep -q "fastmcp" requirements.txt && echo "✅ fastmcp in requirements"
+        grep -q "uvicorn" requirements.txt && echo "✅ uvicorn in requirements"
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        
+    - name: Test unified_server imports
+      run: |
+        python -c "
+import sys
+sys.path.insert(0, '.')
+
+# Test basic imports
+from unified_server import mcp
+from config import API_KEY
+
+print('✅ unified_server imports successful')
+print(f'✅ MCP server name: {mcp.name}')
+print(f'✅ API_KEY loaded: {API_KEY[:10]}...')
+
+# Verify it's the unified server
+assert mcp.name == 'PC-Remote-Unified', f'Expected PC-Remote-Unified, got {mcp.name}'
+print('✅ Unified MCP server verified')
+
+# Verify API key
+assert API_KEY == 'yoojin-secret-2026-xyz789', 'API_KEY mismatch'
+print('✅ API key verified')
+
+print('✅ All checks passed!')
+"
